@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "investools"
+version = "0.1.0"
+description = ""
+authors = ["Alex Thompson <thompson.p.alex@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+click = "^7.1.2"
+pydantic = "^1.7.2"
+PyYAML = "^5.3.1"
+PuLP = "^2.3.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+bpython = "^0.18.0"
+pylint = "^2.6.0"
+devtools = {extras = ["pygments"], version = "^0.6.1"}
+
+[tool.poetry.scripts]
+investools = "investools.__main__:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
