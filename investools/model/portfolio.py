@@ -7,7 +7,7 @@ import yaml
 
 from .account import Account
 from .allocation import PercentageAllocation
-from .asset import Asset, AssetSet
+from .asset import Asset
 
 
 class Portfolio(pydantic.BaseModel):
@@ -33,5 +33,9 @@ class Portfolio(pydantic.BaseModel):
         data = yaml.safe_load(pathlib.Path(path).read_text())
         return cls.parse_obj(data)
 
-    def get_asset_set(self):
-        return AssetSet(self.assets)
+    def get_total_value_in_cents(self):
+        assets_by_name = {asset.name: asset for asset in self.assets}
+        return sum(
+            account.get_total_value_in_cents(assets_by_name)
+            for account in self.accounts
+        )

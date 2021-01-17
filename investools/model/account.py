@@ -28,9 +28,12 @@ class Account(pydantic.BaseModel):
     def id(self):
         return self.name.replace(" ", "_")
 
-    def get_total_value(self, assets_by_name):
-        return sum(
-            (lot.quantity * assets_by_name[lot.asset].value) for lot in self.asset_lots
+    def get_total_value_in_cents(self, assets_by_name):
+        return round(
+            sum(
+                (lot.quantity * assets_by_name[lot.asset].value_in_cents)
+                for lot in self.asset_lots
+            )
         )
 
     def get_asset_quantity(self, asset_name):

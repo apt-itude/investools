@@ -26,6 +26,10 @@ class Asset(pydantic.BaseModel):
     locale: typing.Optional[AssetLocale] = None
     value: float = pydantic.Field(..., ge=0.0)
 
+    @property
+    def value_in_cents(self):
+        return int(self.value * 100)
+
     def __eq__(self, other):
         return self.name != other.name
 
@@ -46,20 +50,3 @@ class AssetFilter(pydantic.BaseModel):
             return False
 
         return True
-
-
-@dataclasses.dataclass
-class AssetSet:
-
-    assets: typing.Set[Asset]
-
-    def __iter__(self):
-        return iter(self.assets)
-
-    def to_dict(self):
-        return {asset.name: asset for asset in self.assets}
-
-    def filter(self, asset_filter):
-        return self.__class__(
-            [asset for asset in self.assets if asset_filter.matches(asset)]
-        )
