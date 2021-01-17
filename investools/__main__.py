@@ -62,6 +62,15 @@ def rebalance(portfolio, drift_limit):
             f"total_value_account_{account.id}",
         )
 
+        if account.taxation_class is model.TaxationClass.TAXABLE:
+            for asset, target_quantity in target_asset_quantities:
+                if asset.class_ is not model.AssetClass.CASH:
+                    current_quantity = account.get_asset_quantity(asset.name)
+                    problem += (
+                        target_quantity >= current_quantity,
+                        f"no_taxable_sales_account_{account.id}_asset_{asset.name}",
+                    )
+
     total_portfolio_value = portfolio.get_total_value_in_cents()
     allocation_drifts = []
 
