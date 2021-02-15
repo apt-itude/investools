@@ -3,6 +3,7 @@ import datetime
 
 import pandas
 import pandas_datareader
+import requests_cache
 
 
 @dataclasses.dataclass
@@ -12,7 +13,11 @@ class AssetHistory:
 
     @classmethod
     def from_tiingo(cls, ticker):
-        tiingo_data = pandas_datareader.get_data_tiingo(ticker)
+        tiingo_data = pandas_datareader.DataReader(
+            ticker,
+            data_source="tiingo",
+            session=_get_cached_tiingo_session(),
+        )
         return cls(tiingo_data.loc[ticker])
 
     @property
@@ -30,3 +35,11 @@ class AssetHistory:
     def get_previous_years_data(self):
         this_year = datetime.datetime.now().year
         return self._historical_data[self._historical_data.index.year < this_year]
+
+
+def _get_cached_tiingo_session():
+    return requests_cache.CachedSession(
+        cache_name="tiingo-api-cache",
+        backend="sqlite",
+        expire_after=datetime.timedelta(days=1),
+    )
