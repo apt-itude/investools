@@ -48,7 +48,7 @@ class Account(BaseModel):
     def get_total_value(self, assets):
         assets_by_ticker = {asset.ticker: asset for asset in assets}
         total_asset_value = sum(
-            (lot.shares * assets_by_ticker[lot.ticker].get_share_price())
+            (lot.shares * assets_by_ticker[lot.ticker].share_price)
             for lot in self.asset_lots
         )
         return self.cash_balance + total_asset_value

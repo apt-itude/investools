@@ -1,10 +1,9 @@
 import click
-import pandas
 import pulp
 import tabulate
 from devtools import debug
 
-from investools import blacklitterman, model, sheets
+from investools import model, returns, sheets
 
 
 @click.group(
@@ -41,22 +40,26 @@ def print_portfolio(portfolio):
     show_envvar=True,
     show_default=True,
 )
-def estimate_returns(portfolio, years):
-    expected_return_rates_by_asset = _calculate_expected_return_rates(portfolio.assets)
+def project_returns(portfolio, years):
+    tax_exempt_return_rates_by_asset = returns.project_tax_exempt_rates(
+        portfolio.assets
+    )
 
     return_rates = []
     for asset in portfolio.assets:
-        tax_exempt_rate = expected_return_rates_by_asset[asset.ticker]
-        tax_deferred_rate = asset.project_annualized_tax_deferred_return_rate(
-            return_rate=tax_exempt_rate,
-            years=years,
-            preferential_tax_rate=portfolio.config.preferential_tax_rate,
+        tax_exempt_rate = tax_exempt_return_rates_by_asset[asset.ticker]
+        tax_deferred_rate = returns.project_tax_deferred_rate(
+            asset,
+            tax_exempt_rate,
+            years,
+            portfolio.config.preferential_tax_rate,
         )
-        taxable_rate = asset.project_annualized_taxable_return_rate(
-            return_rate=tax_exempt_rate,
-            years=years,
-            ordinary_tax_rate=portfolio.config.ordinary_tax_rate,
-            preferential_tax_rate=portfolio.config.preferential_tax_rate,
+        taxable_rate = returns.project_taxable_rate(
+            asset,
+            tax_exempt_rate,
+            years,
+            portfolio.config.ordinary_tax_rate,
+            portfolio.config.preferential_tax_rate,
         )
         return_rates.append(
             [asset.ticker, tax_exempt_rate, tax_deferred_rate, taxable_rate]
@@ -69,27 +72,12 @@ def estimate_returns(portfolio, years):
     )
 
 
-def _calculate_expected_return_rates(assets):
-    acwi = model.Asset(ticker="ACWI", class_=model.AssetClass.EQUITY)
-    market_prices = acwi.get_historical_data().adjClose
-    risk_aversion = blacklitterman.market_implied_risk_aversion(market_prices)
-
-    market_caps_by_asset = {
-        asset.ticker: asset.get_market_capitalization() for asset in assets
-    }
-    annual_returns_by_asset = {
-        asset.ticker: asset.get_annual_returns() for asset in assets
-    }
-    covariance_matrix = pandas.DataFrame(annual_returns_by_asset).cov()
-    return blacklitterman.market_implied_prior_returns(
-        market_caps_by_asset, risk_aversion, covariance_matrix
-    )
-
-
 @main.command()
 @click.pass_obj
 def rebalance(portfolio):
-    expected_return_rates_by_asset = _calculate_expected_return_rates(portfolio.assets)
+    tax_exempt_return_rates_by_asset = returns.project_tax_exempt_rates(
+        portfolio.assets
+    )
 
     problem = pulp.LpProblem(name="Rebalance", sense=pulp.const.LpMaximize)
 
@@ -119,7 +107,7 @@ def rebalance(portfolio):
         ]
 
         target_account_investments = [
-            target_quantity * asset.get_share_price()
+            target_quantity * asset.share_price
             for asset, target_quantity in target_asset_quantities
         ]
 
@@ -137,24 +125,26 @@ def rebalance(portfolio):
                 )
 
         for asset, target_quantity in target_asset_quantities:
-            tax_exempt_return_rate = expected_return_rates_by_asset[asset.ticker]
+            tax_exempt_return_rate = tax_exempt_return_rates_by_asset[asset.ticker]
             if account.taxation_class is model.TaxationClass.TAXABLE:
-                return_rate = asset.project_annualized_taxable_return_rate(
-                    return_rate=tax_exempt_return_rate,
-                    years=account.get_years_until_withdrawal(),
-                    ordinary_tax_rate=portfolio.config.ordinary_tax_rate,
-                    preferential_tax_rate=portfolio.config.preferential_tax_rate,
+                return_rate = returns.project_taxable_rate(
+                    asset,
+                    tax_exempt_return_rate,
+                    account.get_years_until_withdrawal(),
+                    portfolio.config.ordinary_tax_rate,
+                    portfolio.config.preferential_tax_rate,
                 )
             elif account.taxation_class is model.TaxationClass.TAX_DEFERRED:
-                return_rate = asset.project_annualized_tax_deferred_return_rate(
-                    return_rate=tax_exempt_return_rate,
-                    years=account.get_years_until_withdrawal(),
-                    preferential_tax_rate=portfolio.config.preferential_tax_rate,
+                return_rate = returns.project_tax_deferred_rate(
+                    asset,
+                    tax_exempt_return_rate,
+                    account.get_years_until_withdrawal(),
+                    portfolio.config.preferential_tax_rate,
                 )
             else:
                 return_rate = tax_exempt_return_rate
 
-            projected_return = target_quantity * asset.get_share_price() * return_rate
+            projected_return = target_quantity * asset.share_price * return_rate
 
             projected_asset_returns.append(projected_return)
 
@@ -167,7 +157,7 @@ def rebalance(portfolio):
         }
 
         matching_asset_investments = [
-            target_quantity * asset.get_share_price()
+            target_quantity * asset.share_price
             for _, asset, target_quantity in target_asset_quantities_per_account
             if asset.ticker in matching_asset_tickers
         ]
@@ -234,7 +224,7 @@ def rebalance(portfolio):
         }
 
         matching_asset_investments = [
-            asset_quantity.value() * asset.get_share_price()
+            asset_quantity.value() * asset.share_price
             for _, asset, asset_quantity in target_asset_quantities_per_account
             if asset.ticker in matching_asset_tickers
         ]
