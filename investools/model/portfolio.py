@@ -6,6 +6,7 @@ from .account import Account
 from .allocation import Allocation
 from .asset import Asset
 from .base import BaseModel
+from .config import Config
 
 
 class Portfolio(BaseModel):
@@ -13,6 +14,7 @@ class Portfolio(BaseModel):
     allocations: typing.List[Allocation]
     accounts: typing.List[Account]
     assets: typing.List[Asset]
+    config: Config
 
     @pydantic.validator("allocations")
     def _allocation_proportions_sum_to_one(cls, allocations):

@@ -34,23 +34,37 @@ def print_portfolio(portfolio):
 
 @main.command()
 @click.pass_obj
-def estimate_returns(portfolio):
+@click.option(
+    "-y",
+    "--years",
+    default=30,
+    show_envvar=True,
+    show_default=True,
+)
+def estimate_returns(portfolio, years):
     expected_return_rates_by_asset = _calculate_expected_return_rates(portfolio.assets)
 
     return_rates = []
     for asset in portfolio.assets:
         tax_exempt_rate = expected_return_rates_by_asset[asset.ticker]
         tax_deferred_rate = asset.project_annualized_tax_deferred_return_rate(
-            tax_exempt_rate, 30, 0.2
+            return_rate=tax_exempt_rate,
+            years=years,
+            preferential_tax_rate=portfolio.config.preferential_tax_rate,
         )
         taxable_rate = asset.project_annualized_taxable_return_rate(
-            tax_exempt_rate, 30, 0.3, 0.2
+            return_rate=tax_exempt_rate,
+            years=years,
+            ordinary_tax_rate=portfolio.config.ordinary_tax_rate,
+            preferential_tax_rate=portfolio.config.preferential_tax_rate,
         )
-        return_rates.append([tax_exempt_rate, tax_deferred_rate, taxable_rate])
+        return_rates.append(
+            [asset.ticker, tax_exempt_rate, tax_deferred_rate, taxable_rate]
+        )
 
     print(
         tabulate.tabulate(
-            return_rates, headers=["Tax-exempt", "Tax-deferred", "Taxable"]
+            return_rates, headers=["Asset", "Tax-exempt", "Tax-deferred", "Taxable"]
         )
     )
 
@@ -74,10 +88,7 @@ def _calculate_expected_return_rates(assets):
 
 @main.command()
 @click.pass_obj
-@click.option("--drift-limit", type=float, default=0.001)
-@click.option("--preferential-tax-rate", type=float, default=(0.15 + 0.5))
-@click.option("--ordinary-tax-rate", type=float, default=(0.32 + 0.12))
-def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
+def rebalance(portfolio):
     expected_return_rates_by_asset = _calculate_expected_return_rates(portfolio.assets)
 
     problem = pulp.LpProblem(name="Rebalance", sense=pulp.const.LpMaximize)
@@ -131,14 +142,14 @@ def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
                 return_rate = asset.project_annualized_taxable_return_rate(
                     return_rate=tax_exempt_return_rate,
                     years=account.get_years_until_withdrawal(),
-                    ordinary_tax_rate=ordinary_tax_rate,
-                    preferential_tax_rate=preferential_tax_rate,
+                    ordinary_tax_rate=portfolio.config.ordinary_tax_rate,
+                    preferential_tax_rate=portfolio.config.preferential_tax_rate,
                 )
             elif account.taxation_class is model.TaxationClass.TAX_DEFERRED:
                 return_rate = asset.project_annualized_tax_deferred_return_rate(
                     return_rate=tax_exempt_return_rate,
                     years=account.get_years_until_withdrawal(),
-                    preferential_tax_rate=preferential_tax_rate,
+                    preferential_tax_rate=portfolio.config.preferential_tax_rate,
                 )
             else:
                 return_rate = tax_exempt_return_rate
@@ -169,11 +180,11 @@ def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
         )
         matching_assets_drift = allocation.proportion - matching_assets_proportion
         problem += (
-            matching_assets_drift <= drift_limit,
+            matching_assets_drift <= portfolio.config.drift_limit,
             f"drift_positive_allocation_{allocation.id}",
         )
         problem += (
-            -matching_assets_drift <= drift_limit,
+            -matching_assets_drift <= portfolio.config.drift_limit,
             f"drift_negative_allocation_{allocation.id}",
         )
         allocation_drifts.append(matching_assets_drift)

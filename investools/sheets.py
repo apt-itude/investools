@@ -29,4 +29,14 @@ def build_portfolio(sheet):
             )
         account_record["Asset Lots"] = lot_records
 
+    config_worksheet = sheet.worksheet("Config")
+    data["Config"] = _rows_to_dict(config_worksheet)
+
     return model.Portfolio.parse_obj(data)
+
+
+def _rows_to_dict(worksheet):
+    return {
+        row[0]: row[1]
+        for row in worksheet.get_all_values(value_render_option="UNFORMATTED_VALUE")
+    }
