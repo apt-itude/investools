@@ -1,0 +1,19 @@
+[MESSAGES CONTROL]
+
+disable=
+    # Warning after 2 duplicates is too aggressive: https://wiki.c2.com/?ThreeStrikesAndYouRefactor
+    duplicate-code,
+
+    # Black should be used for formatting
+    format,
+
+    # Arguably this should be enabled
+    missing-docstring,
+
+    # Simple data classes may not have any methods
+    too-few-public-methods,
+
+
+[VARIABLES]
+
+ignored-argument-names=_.*|args|kwargs

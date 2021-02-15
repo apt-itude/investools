@@ -2,7 +2,7 @@ import warnings
 
 import pandas
 
-from investools import history, model
+from investools import history
 
 
 def project_tax_exempt_rates(assets, total_market_asset_ticker="ACWI"):
@@ -99,9 +99,9 @@ def _get_market_implied_risk_aversion(
     if not isinstance(market_prices, (pandas.Series, pandas.DataFrame)):
         raise TypeError("Please format market_prices as a pandas.Series")
     rets = market_prices.pct_change().dropna()
-    r = rets.mean() * frequency
+    rate = rets.mean() * frequency
     var = rets.var() * frequency
-    return (r - risk_free_rate) / var
+    return (rate - risk_free_rate) / var
 
 
 def _get_market_implied_prior_returns(
