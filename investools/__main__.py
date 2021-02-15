@@ -1,39 +1,45 @@
-import pathlib
-
 import click
 import pandas
-import pandas_datareader
 import pulp
 import tabulate
-import yaml
 from devtools import debug
 
-from investools import blacklitterman, model
+from investools import blacklitterman, model, sheets
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.group(
+    context_settings={
+        "auto_envvar_prefix": "INVESTOOLS",
+        "help_option_names": ["-h", "--help"],
+    }
+)
 @click.pass_context
 @click.option(
-    "--portfolio",
-    "portfolio_path",
-    type=click.Path(exists=True, dir_okay=False, resolve_path=True),
-    default="portfolio.yaml",
+    "-s",
+    "--google-sheet-id",
+    show_envvar=True,
+    show_default=True,
 )
-def main(ctx, portfolio_path):
-    ctx.obj = model.Portfolio.from_yaml_file(portfolio_path)
+def main(ctx, google_sheet_id):
+    sheet_client = sheets.get_client()
+    sheet = sheet_client.open_by_key(google_sheet_id)
+    ctx.obj = sheets.build_portfolio(sheet)
+
+
+@main.command()
+@click.pass_obj
+def print_portfolio(portfolio):
+    debug(portfolio)
 
 
 @main.command()
 @click.pass_obj
 def estimate_returns(portfolio):
-    non_cash_assets = [
-        asset for asset in portfolio.assets if asset.class_ is not model.AssetClass.CASH
-    ]
-    expected_return_rates_by_asset = _calculate_expected_return_rates(non_cash_assets)
+    expected_return_rates_by_asset = _calculate_expected_return_rates(portfolio.assets)
 
     return_rates = []
-    for asset in non_cash_assets:
-        tax_exempt_rate = expected_return_rates_by_asset[asset.name]
+    for asset in portfolio.assets:
+        tax_exempt_rate = expected_return_rates_by_asset[asset.ticker]
         tax_deferred_rate = asset.project_annualized_tax_deferred_return_rate(
             tax_exempt_rate, 30, 0.2
         )
@@ -49,16 +55,16 @@ def estimate_returns(portfolio):
     )
 
 
-def _calculate_expected_return_rates(non_cash_assets):
-    acwi = model.Asset.parse_obj({"name": "ACWI", "class": "equity"})
+def _calculate_expected_return_rates(assets):
+    acwi = model.Asset(ticker="ACWI", class_=model.AssetClass.EQUITY)
     market_prices = acwi.get_historical_data().adjClose
     risk_aversion = blacklitterman.market_implied_risk_aversion(market_prices)
 
     market_caps_by_asset = {
-        asset.name: asset.get_market_capitalization() for asset in non_cash_assets
+        asset.ticker: asset.get_market_capitalization() for asset in assets
     }
     annual_returns_by_asset = {
-        asset.name: asset.get_annual_returns() for asset in non_cash_assets
+        asset.ticker: asset.get_annual_returns() for asset in assets
     }
     covariance_matrix = pandas.DataFrame(annual_returns_by_asset).cov()
     return blacklitterman.market_implied_prior_returns(
@@ -68,14 +74,11 @@ def _calculate_expected_return_rates(non_cash_assets):
 
 @main.command()
 @click.pass_obj
-@click.option("--drift-limit", type=float, default=0.1)
+@click.option("--drift-limit", type=float, default=0.001)
 @click.option("--preferential-tax-rate", type=float, default=(0.15 + 0.5))
 @click.option("--ordinary-tax-rate", type=float, default=(0.32 + 0.12))
 def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
-    non_cash_assets = [
-        asset for asset in portfolio.assets if asset.class_ is not model.AssetClass.CASH
-    ]
-    expected_return_rates_by_asset = _calculate_expected_return_rates(non_cash_assets)
+    expected_return_rates_by_asset = _calculate_expected_return_rates(portfolio.assets)
 
     problem = pulp.LpProblem(name="Rebalance", sense=pulp.const.LpMaximize)
 
@@ -84,7 +87,7 @@ def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
             account,
             asset,
             pulp.LpVariable(
-                f"target_quantity_account_{account.id}_asset_{asset.name}",
+                f"target_quantity_account_{account.id}_asset_{asset.ticker}",
                 lowBound=0,
                 cat="Integer",
             ),
@@ -95,10 +98,8 @@ def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
 
     projected_asset_returns = []
 
-    assets_by_name = {asset.name: asset for asset in portfolio.assets}
-
     for account in portfolio.accounts:
-        total_account_value = account.get_total_value_in_cents(assets_by_name)
+        total_account_value = account.get_total_value_in_cents(portfolio.assets)
 
         target_asset_quantities = [
             (asset, target_quantity)
@@ -112,24 +113,20 @@ def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
         ]
 
         problem += (
-            pulp.lpSum(target_account_investments) == total_account_value,
+            pulp.lpSum(target_account_investments) <= total_account_value,
             f"total_value_account_{account.id}",
         )
 
         if account.taxation_class is model.TaxationClass.TAXABLE:
             for asset, target_quantity in target_asset_quantities:
-                if asset.class_ is not model.AssetClass.CASH:
-                    current_quantity = account.get_asset_quantity(asset.name)
-                    problem += (
-                        target_quantity >= current_quantity,
-                        f"no_taxable_sales_account_{account.id}_asset_{asset.name}",
-                    )
+                current_quantity = account.get_total_asset_shares(asset.ticker)
+                problem += (
+                    target_quantity >= current_quantity,
+                    f"no_taxable_sales_account_{account.id}_asset_{asset.ticker}",
+                )
 
         for asset, target_quantity in target_asset_quantities:
-            if asset.class_ is model.AssetClass.CASH:
-                continue
-
-            tax_exempt_return_rate = expected_return_rates_by_asset[asset.name]
+            tax_exempt_return_rate = expected_return_rates_by_asset[asset.ticker]
             if account.taxation_class is model.TaxationClass.TAXABLE:
                 return_rate = asset.project_annualized_taxable_return_rate(
                     return_rate=tax_exempt_return_rate,
@@ -156,21 +153,21 @@ def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
     allocation_drifts = []
 
     for allocation in portfolio.allocations:
-        matching_asset_names = {
-            asset.name for asset in portfolio.assets if allocation.matches(asset)
+        matching_asset_tickers = {
+            asset.ticker for asset in portfolio.assets if allocation.matches(asset)
         }
 
         matching_asset_investments = [
             target_quantity * asset.get_share_price_in_cents()
             for _, asset, target_quantity in target_asset_quantities_per_account
-            if asset.name in matching_asset_names
+            if asset.ticker in matching_asset_tickers
         ]
 
         matching_assets_total_investment = pulp.lpSum(matching_asset_investments)
-        matching_assets_percentage = (
-            matching_assets_total_investment * 100 / total_portfolio_value
+        matching_assets_proportion = (
+            matching_assets_total_investment / total_portfolio_value
         )
-        matching_assets_drift = allocation.percentage - matching_assets_percentage
+        matching_assets_drift = allocation.proportion - matching_assets_proportion
         problem += (
             matching_assets_drift <= drift_limit,
             f"drift_positive_allocation_{allocation.id}",
@@ -195,12 +192,12 @@ def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
             target_quantity,
         ) in target_asset_quantities_per_account:
             if inner_account.id == account.id:
-                current_quantity = account.get_asset_quantity(asset.name)
+                current_quantity = account.get_total_asset_shares(asset.ticker)
                 delta = target_quantity.value() - current_quantity
                 account_results.append(
                     [
                         account.name,
-                        asset.name,
+                        asset.ticker,
                         current_quantity,
                         target_quantity.value(),
                         delta,
@@ -223,27 +220,27 @@ def rebalance(portfolio, drift_limit, preferential_tax_rate, ordinary_tax_rate):
 
     allocation_results = []
     for allocation in portfolio.allocations:
-        matching_asset_names = {
-            asset.name for asset in portfolio.assets if allocation.matches(asset)
+        matching_asset_tickers = {
+            asset.ticker for asset in portfolio.assets if allocation.matches(asset)
         }
 
         matching_asset_investments = [
             asset_quantity.value() * asset.get_share_price_in_cents()
             for _, asset, asset_quantity in target_asset_quantities_per_account
-            if asset.name in matching_asset_names
+            if asset.ticker in matching_asset_tickers
         ]
         matching_assets_total_investment = sum(matching_asset_investments)
-        matching_assets_percentage = (
-            matching_assets_total_investment * 100 / total_portfolio_value
+        matching_assets_proportion = (
+            matching_assets_total_investment / total_portfolio_value
         )
-        matching_assets_drift = allocation.percentage - matching_assets_percentage
+        matching_assets_drift = allocation.proportion - matching_assets_proportion
 
         allocation_results.append(
             [
                 allocation.name,
-                allocation.percentage,
-                matching_assets_percentage,
-                matching_assets_drift,
+                allocation.proportion * 100,
+                matching_assets_proportion * 100,
+                matching_assets_drift * 100,
             ]
         )
 

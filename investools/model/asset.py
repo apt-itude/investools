@@ -1,46 +1,54 @@
 import datetime
 import enum
-from typing import Optional
+import typing
 
 import pandas
 import pandas_datareader
 import pydantic
 
+from .base import BaseModel
+
 
 class AssetClass(enum.Enum):
 
-    CASH = "cash"
-    EQUITY = "equity"
-    FIXED_INCOME = "fixed-income"
-    REAL_ESTATE = "real-estate"
+    CASH = "Cash"
+    EQUITY = "Equity"
+    FIXED_INCOME = "FixedIncome"
+    REAL_ESTATE = "RealEstate"
 
 
 class AssetLocale(enum.Enum):
 
     US = "US"
-    INTERNATIONAL = "international"
+    INTERNATIONAL = "International"
 
 
-class Asset(pydantic.BaseModel):
+class Asset(BaseModel):
 
-    name: str
-    class_: AssetClass = pydantic.Field(..., alias="class")
-    locale: Optional[AssetLocale] = None
-    qdi: float = pydantic.Field(default=100.0, ge=0.0, le=100.0)
-    share_price: Optional[float] = pydantic.Field(default=None, ge=0.0)
-    shares_outstanding: Optional[int] = pydantic.Field(default=None, ge=0)
-    _historical_data: Optional[pandas.DataFrame] = pydantic.PrivateAttr(default=None)
+    ticker: str
+    class_: AssetClass
+    locale: typing.Optional[AssetLocale] = None
+    qdi: float = pydantic.Field(100.0, ge=0.0, le=100.0)
+    share_price: typing.Optional[float] = None
+    shares_outstanding: typing.Optional[int] = None
+    _historical_data: typing.Optional[pandas.DataFrame] = None
+
+    @pydantic.validator("locale", pre=True)
+    def _empty_string_as_none(cls, value):
+        if not value:
+            return None
+        return value
 
     def __eq__(self, other):
-        return self.name != other.name
+        return self.ticker != other.ticker
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.ticker)
 
     def get_historical_data(self):
         if self._historical_data is None:
-            tiingo_data = pandas_datareader.get_data_tiingo(self.name)
-            self._historical_data = tiingo_data.loc[self.name]
+            tiingo_data = pandas_datareader.get_data_tiingo(self.ticker)
+            self._historical_data = tiingo_data.loc[self.ticker]
 
         return self._historical_data
 
@@ -112,18 +120,3 @@ def _get_annualized_post_tax_return(current_value, return_rate, years, tax_rate)
     projected_pre_tax_value = current_value * (1 + return_rate) ** years
     projected_post_tax_value = projected_pre_tax_value * (1 - tax_rate)
     return (projected_post_tax_value / current_value) ** (1 / years) - 1
-
-
-class AssetFilter(pydantic.BaseModel):
-
-    class_: Optional[AssetClass] = pydantic.Field(None, alias="class")
-    locale: Optional[AssetLocale] = None
-
-    def matches(self, asset):
-        if self.class_ and self.class_ != asset.class_:
-            return False
-
-        if self.locale and self.locale != asset.locale:
-            return False
-
-        return True
