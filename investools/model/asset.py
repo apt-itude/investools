@@ -27,12 +27,12 @@ class Asset(BaseModel):
     locale: typing.Optional[AssetLocale] = None
     share_price: float
     shares_outstanding: int
-    qdi: float = pydantic.Field(1.0, ge=0.0, le=1.0)
+    qdi: float = pydantic.Field(1.0, ge=0.0, le=1.0, alias="QDI")
 
-    @pydantic.validator("locale", pre=True)
-    def _empty_string_as_none(cls, value):
-        if not value:
-            return None
+    @pydantic.validator("locale", "qdi", pre=True)
+    def _empty_string_as_default(cls, value, field):
+        if value == "":
+            return field.default
         return value
 
     def __eq__(self, other):
