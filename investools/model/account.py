@@ -41,21 +41,17 @@ class Account(BaseModel):
     def id(self):
         return self.name.replace(" ", "_")
 
-    @property
-    def cash_balance_in_cents(self):
-        return int(self.cash_balance * 100)
-
     def get_years_until_withdrawal(self):
         this_year = datetime.datetime.now().year
         return self.withdrawal_year - this_year
 
-    def get_total_value_in_cents(self, assets):
+    def get_total_value(self, assets):
         assets_by_ticker = {asset.ticker: asset for asset in assets}
-        total_asset_value_in_cents = sum(
-            (lot.shares * assets_by_ticker[lot.ticker].get_share_price_in_cents())
+        total_asset_value = sum(
+            (lot.shares * assets_by_ticker[lot.ticker].get_share_price())
             for lot in self.asset_lots
         )
-        return round(self.cash_balance_in_cents + total_asset_value_in_cents)
+        return self.cash_balance + total_asset_value
 
     def get_total_asset_shares(self, ticker):
         return sum(lot.shares for lot in self.iterate_lots_for_asset(ticker))

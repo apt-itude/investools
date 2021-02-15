@@ -59,9 +59,6 @@ class Asset(BaseModel):
         historical_data = self.get_historical_data()
         return historical_data.adjClose.tail(1).values[0]
 
-    def get_share_price_in_cents(self):
-        return int(self.get_share_price() * 100)
-
     def get_shares_outstanding(self):
         # TODO figure out how to reliably get this from an API
         assert self.shares_outstanding is not None, "Missing shares_outstanding field"

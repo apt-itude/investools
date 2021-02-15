@@ -28,7 +28,5 @@ class Portfolio(BaseModel):
 
         return allocations
 
-    def get_total_value_in_cents(self):
-        return sum(
-            account.get_total_value_in_cents(self.assets) for account in self.accounts
-        )
+    def get_total_value(self):
+        return sum(account.get_total_value(self.assets) for account in self.accounts)

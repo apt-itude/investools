@@ -110,7 +110,7 @@ def rebalance(portfolio):
     projected_asset_returns = []
 
     for account in portfolio.accounts:
-        total_account_value = account.get_total_value_in_cents(portfolio.assets)
+        total_account_value = account.get_total_value(portfolio.assets)
 
         target_asset_quantities = [
             (asset, target_quantity)
@@ -119,7 +119,7 @@ def rebalance(portfolio):
         ]
 
         target_account_investments = [
-            target_quantity * asset.get_share_price_in_cents()
+            target_quantity * asset.get_share_price()
             for asset, target_quantity in target_asset_quantities
         ]
 
@@ -154,13 +154,11 @@ def rebalance(portfolio):
             else:
                 return_rate = tax_exempt_return_rate
 
-            projected_return = (
-                target_quantity * asset.get_share_price_in_cents() * return_rate
-            )
+            projected_return = target_quantity * asset.get_share_price() * return_rate
 
             projected_asset_returns.append(projected_return)
 
-    total_portfolio_value = portfolio.get_total_value_in_cents()
+    total_portfolio_value = portfolio.get_total_value()
     allocation_drifts = []
 
     for allocation in portfolio.allocations:
@@ -169,7 +167,7 @@ def rebalance(portfolio):
         }
 
         matching_asset_investments = [
-            target_quantity * asset.get_share_price_in_cents()
+            target_quantity * asset.get_share_price()
             for _, asset, target_quantity in target_asset_quantities_per_account
             if asset.ticker in matching_asset_tickers
         ]
@@ -236,7 +234,7 @@ def rebalance(portfolio):
         }
 
         matching_asset_investments = [
-            asset_quantity.value() * asset.get_share_price_in_cents()
+            asset_quantity.value() * asset.get_share_price()
             for _, asset, asset_quantity in target_asset_quantities_per_account
             if asset.ticker in matching_asset_tickers
         ]
