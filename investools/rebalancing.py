@@ -35,6 +35,21 @@ class Position:
 
 
 def rebalance(portfolio: model.Portfolio) -> typing.List[Position]:
+    drift_limit = 0.0001
+    attempt = 1
+    while True:
+        try:
+            return _try_rebalance(portfolio, drift_limit)
+        except CannotRebalance:
+            drift_limit = drift_limit * 2 ** 1
+            if drift_limit > portfolio.config.drift_limit:
+                raise
+            attempt += 1
+
+
+def _try_rebalance(
+    portfolio: model.Portfolio, drift_limit: float
+) -> typing.List[Position]:
     problem = pulp.LpProblem(name="Rebalance", sense=pulp.const.LpMaximize)
 
     positions = [
@@ -81,11 +96,11 @@ def rebalance(portfolio: model.Portfolio) -> typing.List[Position]:
         )
         matching_assets_drift = allocation.proportion - matching_assets_proportion
         problem += (
-            matching_assets_drift <= portfolio.config.drift_limit,
+            matching_assets_drift <= drift_limit,
             f"drift_within_positive_limit_allocation_{allocation.id}",
         )
         problem += (
-            -matching_assets_drift <= portfolio.config.drift_limit,
+            -matching_assets_drift <= drift_limit,
             f"drift_within_negative_limit_allocation_{allocation.id}",
         )
 
