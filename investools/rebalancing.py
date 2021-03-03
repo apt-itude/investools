@@ -147,11 +147,16 @@ def _get_projected_position_return_variables(
                 portfolio.config.preferential_tax_rate,
             )
         elif position.account.taxation_class is model.TaxationClass.TAX_DEFERRED:
+            tax_rate = (
+                portfolio.config.ordinary_tax_rate
+                if position.account.withdrawal_tax_rate is None
+                else position.account.withdrawal_tax_rate
+            )
             return_rate = returns.project_tax_deferred_rate(
                 asset,
                 tax_exempt_return_rate,
                 position.account.get_years_until_withdrawal(),
-                portfolio.config.ordinary_tax_rate,
+                tax_rate,
             )
         else:
             return_rate = tax_exempt_return_rate

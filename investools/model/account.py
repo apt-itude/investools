@@ -26,6 +26,7 @@ class Account(BaseModel):
     name: str
     taxation_class: TaxationClass
     withdrawal_year: int
+    withdrawal_tax_rate: typing.Optional[float] = pydantic.Field(None, ge=0.0, le=1.0)
     cash_balance: float = pydantic.Field(0.0, ge=0.0)
     asset_lots: typing.List[AssetLot] = pydantic.Field(default_factory=list)
 
@@ -35,6 +36,12 @@ class Account(BaseModel):
         if withdrawal_year < this_year:
             raise ValueError("Withdrawal year cannot be in the past")
         return withdrawal_year
+
+    @pydantic.validator("withdrawal_tax_rate", pre=True)
+    def _empty_string_as_none(cls, value):
+        if not value:
+            return None
+        return value
 
     @property
     def id(self):
