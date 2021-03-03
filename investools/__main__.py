@@ -53,7 +53,7 @@ def project_returns(portfolio, years):
             asset,
             tax_exempt_rate,
             years,
-            portfolio.config.preferential_tax_rate,
+            portfolio.config.ordinary_tax_rate,
         )
         taxable_rate = returns.project_taxable_rate(
             asset,

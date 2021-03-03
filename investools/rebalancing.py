@@ -151,7 +151,7 @@ def _get_projected_position_return_variables(
                 asset,
                 tax_exempt_return_rate,
                 position.account.get_years_until_withdrawal(),
-                portfolio.config.preferential_tax_rate,
+                portfolio.config.ordinary_tax_rate,
             )
         else:
             return_rate = tax_exempt_return_rate

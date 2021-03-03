@@ -25,21 +25,24 @@ def project_tax_exempt_rates(assets, total_market_asset_ticker="ACWI"):
     )
 
 
-def project_tax_deferred_rate(
-    asset, tax_exempt_return_rate, years, preferential_tax_rate
-):
+def project_tax_deferred_rate(asset, tax_exempt_return_rate, years, ordinary_tax_rate):
+    """
+    Reference: https://www.betterment.com/resources/asset-location-methodology/#part-4
+    See "Deriving Account-Specific After-Tax Return" #2
+    """
     current_value = asset.share_price
     return _get_annualized_post_tax_return_rate(
-        current_value,
-        tax_exempt_return_rate,
-        years,
-        preferential_tax_rate,
+        current_value, tax_exempt_return_rate, years, ordinary_tax_rate
     )
 
 
 def project_taxable_rate(
     asset, tax_exempt_return_rate, years, ordinary_tax_rate, preferential_tax_rate
 ):
+    """
+    Reference: https://www.betterment.com/resources/asset-location-methodology/#part-4
+    See "Deriving Account-Specific After-Tax Return" #3
+    """
     asset_history = history.AssetHistory.from_tiingo(asset.ticker)
     average_annual_dividend = asset_history.get_annual_dividends().mean()
 
@@ -52,8 +55,10 @@ def project_taxable_rate(
 
     current_value = asset.share_price
     annual_return = current_value * tax_exempt_return_rate
-    adjusted_annual_return = annual_return - dividend_taxes
-    adjusted_annual_return_rate = adjusted_annual_return / current_value
+    # The tax-exempt return rate is calcuated using "adjusted close" prices, which
+    # factor in dividends, so this rate includes growth resulting from dividends
+    post_tax_annual_return = annual_return - dividend_taxes
+    adjusted_annual_return_rate = post_tax_annual_return / current_value
 
     return _get_annualized_post_tax_return_rate(
         current_value,
@@ -65,7 +70,9 @@ def project_taxable_rate(
 
 def _get_annualized_post_tax_return_rate(current_value, return_rate, years, tax_rate):
     projected_pre_tax_value = current_value * (1 + return_rate) ** years
-    projected_post_tax_value = projected_pre_tax_value * (1 - tax_rate)
+    growth = projected_pre_tax_value - current_value
+    taxes = growth * tax_rate
+    projected_post_tax_value = projected_pre_tax_value - taxes
     return (projected_post_tax_value / current_value) ** (1 / years) - 1
 
 
