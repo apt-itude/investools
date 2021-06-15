@@ -36,15 +36,13 @@ class Position:
 
 def rebalance(portfolio: model.Portfolio) -> typing.List[Position]:
     drift_limit = 0.0001
-    attempt = 1
     while True:
         try:
             return _try_rebalance(portfolio, drift_limit)
         except CannotRebalance:
-            drift_limit = drift_limit * 2 ** 1
+            drift_limit = drift_limit * 2
             if drift_limit > portfolio.config.drift_limit:
                 raise
-            attempt += 1
 
 
 def _try_rebalance(
