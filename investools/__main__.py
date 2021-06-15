@@ -75,9 +75,18 @@ def project_returns(portfolio, years):
 
 @main.command()
 @click.pass_obj
-def rebalance(portfolio):
+@click.option(
+    "--no-sales",
+    is_flag=True,
+    default=False,
+    help=(
+        "Disallow asset sales (generally only works when rebalancing after adding cash)"
+    ),
+    show_default=True,
+)
+def rebalance(portfolio, no_sales):
     try:
-        positions = rebalancing.rebalance(portfolio)
+        positions = rebalancing.rebalance(portfolio, no_sales=no_sales)
     except rebalancing.CannotRebalance as err:
         sys.exit(str(err))
 

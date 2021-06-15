@@ -34,11 +34,15 @@ class Position:
         return self.get_target_shares() * self.asset.share_price
 
 
-def rebalance(portfolio: model.Portfolio) -> typing.List[Position]:
+def rebalance(
+    portfolio: model.Portfolio,
+    no_sales: bool = False,
+) -> typing.List[Position]:
+
     drift_limit = 0.0001
     while True:
         try:
-            return _try_rebalance(portfolio, drift_limit)
+            return _try_rebalance(portfolio, drift_limit, no_sales)
         except CannotRebalance:
             drift_limit = drift_limit * 2
             if drift_limit > portfolio.config.drift_limit:
@@ -46,8 +50,11 @@ def rebalance(portfolio: model.Portfolio) -> typing.List[Position]:
 
 
 def _try_rebalance(
-    portfolio: model.Portfolio, drift_limit: float
+    portfolio: model.Portfolio,
+    drift_limit: float,
+    no_sales: bool,
 ) -> typing.List[Position]:
+
     problem = pulp.LpProblem(name="Rebalance", sense=pulp.const.LpMaximize)
 
     positions = [
@@ -104,11 +111,10 @@ def _try_rebalance(
 
     # Ensure there are no taxable asset sales
     for position in positions:
-        if position.account.taxation_class is model.TaxationClass.TAXABLE:
+        if no_sales or position.account.taxation_class is model.TaxationClass.TAXABLE:
             problem += (
                 position.target_shares_variable >= position.get_current_shares(),
-                f"no_taxable_sales_account_{position.account.id}_"
-                f"asset_{position.asset.ticker}",
+                f"no_sales_account_{position.account.id}_asset_{position.asset.ticker}",
             )
 
     projected_position_return_variables = _get_projected_position_return_variables(
