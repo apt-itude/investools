@@ -14,7 +14,8 @@ jobs:
         runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
       - name: Set Up Python
         uses: actions/setup-python@v2
