@@ -33,5 +33,8 @@ jobs:
       - name: Check Format
         run: poetry run black --check .
 
+      - name: Check Imports
+        run: poetry run isort --check --diff .
+
       - name: Check Types
         run: poetry run mypy --strict investools
