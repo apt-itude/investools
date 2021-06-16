@@ -7,20 +7,20 @@ authors = ["Alex Thompson <thompson.p.alex@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.9"
 click = "^8.0.0"
+gspread = {git = "https://github.com/burnash/gspread.git"}
+pandas = "^1.2.0"
+pandas-datareader = "^0.9.0"
 pydantic = "^1.7.2"
 PuLP = "^2.3.1"
-tabulate = "^0.8.7"
-pandas-datareader = "^0.9.0"
-pandas = "^1.2.0"
 requests-cache = "^0.5.2"
-gspread = {git = "https://github.com/burnash/gspread.git"}
+tabulate = "^0.8.7"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
-bpython = "^0.18.0"
-pylint = "^2.6.0"
+black = "^21.6b0"
 devtools = {extras = ["pygments"], version = "^0.6.1"}
+isort = "^5.8.0"
 mypy = "^0.902"
+pylint = "^2.6.0"
 types-tabulate = "^0.1.0"
 
 [tool.poetry.scripts]

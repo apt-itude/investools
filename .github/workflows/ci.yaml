@@ -1,0 +1,40 @@
+name: CI
+
+on: [push]
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.9]
+        poetry-version: [1.1]
+        os: [ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set Up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: ${{ matrix.poetry-version }}
+
+      - name: Install Dependencies
+        run: poetry install
+
+      - name: Check Format
+        run: poetry run black --check .
+
+      - name: Check Imports
+        run: poetry run isort --check --diff .
+
+      - name: Check Types
+        run: poetry run mypy --strict investools

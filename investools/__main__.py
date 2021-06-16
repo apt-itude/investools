@@ -2,7 +2,11 @@ import sys
 
 import click
 import tabulate
-from devtools import debug
+
+try:
+    from devtools import debug
+except ImportError:
+    debug = print
 
 from investools import model, rebalancing, returns, sheets
 
