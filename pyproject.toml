@@ -6,7 +6,7 @@ authors = ["Alex Thompson <thompson.p.alex@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-click = "^7.1.2"
+click = "^8.0.0"
 pydantic = "^1.7.2"
 PuLP = "^2.3.1"
 tabulate = "^0.8.7"
@@ -20,6 +20,8 @@ pytest = "^5.2"
 bpython = "^0.18.0"
 pylint = "^2.6.0"
 devtools = {extras = ["pygments"], version = "^0.6.1"}
+mypy = "^0.902"
+types-tabulate = "^0.1.0"
 
 [tool.poetry.scripts]
 investools = "investools.__main__:main"

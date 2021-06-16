@@ -4,7 +4,7 @@ import click
 import tabulate
 from devtools import debug
 
-from investools import rebalancing, returns, sheets
+from investools import model, rebalancing, returns, sheets
 
 
 @click.group(
@@ -20,7 +20,7 @@ from investools import rebalancing, returns, sheets
     show_envvar=True,
     show_default=True,
 )
-def main(ctx, google_sheet_id):
+def main(ctx: click.Context, google_sheet_id: str) -> None:
     sheet_client = sheets.get_client()
     sheet = sheet_client.open_by_key(google_sheet_id)
     ctx.obj = sheets.build_portfolio(sheet)
@@ -28,7 +28,7 @@ def main(ctx, google_sheet_id):
 
 @main.command()
 @click.pass_obj
-def print_portfolio(portfolio):
+def print_portfolio(portfolio: model.Portfolio) -> None:
     debug(portfolio)
 
 
@@ -37,11 +37,12 @@ def print_portfolio(portfolio):
 @click.option(
     "-y",
     "--years",
+    type=int,
     default=30,
     show_envvar=True,
     show_default=True,
 )
-def project_returns(portfolio, years):
+def project_returns(portfolio: model.Portfolio, years: int) -> None:
     tax_exempt_return_rates_by_asset = returns.project_tax_exempt_rates(
         portfolio.assets
     )
@@ -84,7 +85,7 @@ def project_returns(portfolio, years):
     ),
     show_default=True,
 )
-def rebalance(portfolio, no_sales):
+def rebalance(portfolio: model.Portfolio, no_sales: bool) -> None:
     try:
         positions = rebalancing.rebalance(portfolio, no_sales=no_sales)
     except rebalancing.CannotRebalance as err:
