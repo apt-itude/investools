@@ -1,4 +1,4 @@
-import typing
+import typing as t
 
 import pydantic
 
@@ -11,13 +11,16 @@ from .config import Config
 
 class Portfolio(BaseModel):
 
-    allocations: typing.List[Allocation]
-    accounts: typing.List[Account]
-    assets: typing.List[Asset]
+    allocations: t.List[Allocation]
+    accounts: t.List[Account]
+    assets: t.List[Asset]
     config: Config
 
     @pydantic.validator("allocations")
-    def _allocation_proportions_sum_to_one(cls, allocations):
+    def _allocation_proportions_sum_to_one(
+        cls, allocations: t.List[Allocation]
+    ) -> t.List[Allocation]:
+
         if not allocations:
             return allocations
 
@@ -28,5 +31,5 @@ class Portfolio(BaseModel):
 
         return allocations
 
-    def get_total_value(self):
+    def get_total_value(self) -> float:
         return sum(account.get_total_value(self.assets) for account in self.accounts)

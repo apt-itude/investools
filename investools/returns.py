@@ -1,11 +1,16 @@
+import typing as t
 import warnings
 
 import pandas
 
-from investools import history
+from investools import history, model
 
 
-def project_tax_exempt_rates(assets, total_market_asset_ticker="ACWI"):
+def project_tax_exempt_rates(
+    assets: t.Iterable[model.Asset],
+    total_market_asset_ticker: str = "ACWI",
+) -> t.Dict[str, float]:
+
     market_history = history.AssetHistory.from_tiingo(total_market_asset_ticker)
     market_prices = market_history.data.adjClose
     risk_aversion = _get_market_implied_risk_aversion(market_prices)
@@ -20,12 +25,18 @@ def project_tax_exempt_rates(assets, total_market_asset_ticker="ACWI"):
         for asset in assets
     }
     covariance_matrix = pandas.DataFrame(annual_returns_by_asset).cov()
+
     return _get_market_implied_prior_returns(
         market_caps_by_asset, risk_aversion, covariance_matrix
     )
 
 
-def project_tax_deferred_rate(asset, tax_exempt_return_rate, years, ordinary_tax_rate):
+def project_tax_deferred_rate(
+    asset: model.Asset,
+    tax_exempt_return_rate: float,
+    years: int,
+    ordinary_tax_rate: float,
+) -> float:
     """
     Reference: https://www.betterment.com/resources/asset-location-methodology/#part-4
     See "Deriving Account-Specific After-Tax Return" #2
@@ -37,8 +48,12 @@ def project_tax_deferred_rate(asset, tax_exempt_return_rate, years, ordinary_tax
 
 
 def project_taxable_rate(
-    asset, tax_exempt_return_rate, years, ordinary_tax_rate, preferential_tax_rate
-):
+    asset: model.Asset,
+    tax_exempt_return_rate: float,
+    years: int,
+    ordinary_tax_rate: float,
+    preferential_tax_rate: float,
+) -> float:
     """
     Reference: https://www.betterment.com/resources/asset-location-methodology/#part-4
     See "Deriving Account-Specific After-Tax Return" #3
@@ -68,7 +83,12 @@ def project_taxable_rate(
     )
 
 
-def _get_annualized_post_tax_return_rate(current_value, return_rate, years, tax_rate):
+def _get_annualized_post_tax_return_rate(
+    current_value: float,
+    return_rate: float,
+    years: int,
+    tax_rate: float,
+) -> float:
     projected_pre_tax_value = current_value * (1 + return_rate) ** years
     growth = projected_pre_tax_value - current_value
     taxes = growth * tax_rate
@@ -81,8 +101,10 @@ def _get_annualized_post_tax_return_rate(current_value, return_rate, years, tax_
 
 
 def _get_market_implied_risk_aversion(
-    market_prices, frequency=252, risk_free_rate=0.02
-):
+    market_prices: t.Union[pandas.Series, pandas.DataFrame],
+    frequency: int = 252,
+    risk_free_rate: float = 0.02,
+) -> float:
     r"""
     Calculate the market-implied risk-aversion parameter (i.e market price of risk)
     based on market prices. For example, if the market has excess returns of 10% a year
@@ -103,17 +125,18 @@ def _get_market_implied_risk_aversion(
     :return: market-implied risk aversion
     :rtype: float
     """
-    if not isinstance(market_prices, (pandas.Series, pandas.DataFrame)):
-        raise TypeError("Please format market_prices as a pandas.Series")
     rets = market_prices.pct_change().dropna()
-    rate = rets.mean() * frequency
-    var = rets.var() * frequency
+    rate = float(rets.mean() * frequency)
+    var = float(rets.var() * frequency)
     return (rate - risk_free_rate) / var
 
 
 def _get_market_implied_prior_returns(
-    market_caps, risk_aversion, cov_matrix, risk_free_rate=0.02
-):
+    market_caps: t.Mapping[str, float],
+    risk_aversion: float,
+    cov_matrix: pandas.DataFrame,
+    risk_free_rate: float = 0.02,
+) -> t.Dict[str, float]:
     r"""
     Compute the prior estimate of returns implied by the market weights.
     In other words, given each asset's contribution to the risk of the market
@@ -131,7 +154,7 @@ def _get_market_implied_prior_returns(
                            to the covariance matrix.
     :type risk_free_rate: float, optional
     :return: prior estimate of returns as implied by the market caps
-    :rtype: pandas.Series
+    :rtype: dict
     """
     if not isinstance(cov_matrix, pandas.DataFrame):
         warnings.warn(
@@ -141,4 +164,5 @@ def _get_market_implied_prior_returns(
     mcaps = pandas.Series(market_caps)
     mkt_weights = mcaps / mcaps.sum()
     # Pi is excess returns so must add risk_free_rate to get return.
-    return risk_aversion * cov_matrix.dot(mkt_weights) + risk_free_rate
+    returns_as_series = risk_aversion * cov_matrix.dot(mkt_weights) + risk_free_rate
+    return dict(returns_as_series)

@@ -1,16 +1,17 @@
+import typing as t
+
 import gspread
 
 from investools import model
 
-
 _GOOGLE_OAUTH_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 
-def get_client():
+def get_client() -> gspread.Client:
     return gspread.oauth(scopes=_GOOGLE_OAUTH_SCOPES)
 
 
-def build_portfolio(sheet):
+def build_portfolio(sheet: gspread.Spreadsheet) -> model.Portfolio:
     data = {
         worksheet_title: sheet.worksheet(worksheet_title).get_all_records(
             value_render_option="UNFORMATTED_VALUE"
@@ -35,7 +36,7 @@ def build_portfolio(sheet):
     return model.Portfolio.parse_obj(data)
 
 
-def _rows_to_dict(worksheet):
+def _rows_to_dict(worksheet: gspread.Worksheet) -> t.Dict[t.Any, t.Any]:
     return {
         row[0]: row[1]
         for row in worksheet.get_all_values(value_render_option="UNFORMATTED_VALUE")

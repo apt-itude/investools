@@ -1,6 +1,6 @@
 import dataclasses
 import functools
-import typing
+import typing as t
 
 import pulp
 
@@ -21,24 +21,20 @@ class Position:
             cat="Integer",
         )
 
-    def get_target_shares(self):
-        return self.target_shares_variable.value()
+    def get_target_shares(self) -> int:
+        return self.target_shares_variable.value()  # type: ignore
 
-    def get_current_shares(self):
+    def get_current_shares(self) -> float:
         return self.account.get_total_asset_shares(self.asset.ticker)
 
-    def get_delta(self):
+    def get_delta(self) -> float:
         return self.get_target_shares() - self.get_current_shares()
 
-    def get_target_investment(self):
+    def get_target_investment(self) -> float:
         return self.get_target_shares() * self.asset.share_price
 
 
-def rebalance(
-    portfolio: model.Portfolio,
-    no_sales: bool = False,
-) -> typing.List[Position]:
-
+def rebalance(portfolio: model.Portfolio, no_sales: bool = False) -> t.List[Position]:
     drift_limit = 0.0001
     while True:
         try:
@@ -53,7 +49,7 @@ def _try_rebalance(
     portfolio: model.Portfolio,
     drift_limit: float,
     no_sales: bool,
-) -> typing.List[Position]:
+) -> t.List[Position]:
 
     problem = pulp.LpProblem(name="Rebalance", sense=pulp.const.LpMaximize)
 
@@ -132,8 +128,9 @@ def _try_rebalance(
 
 def _get_projected_position_return_variables(
     portfolio: model.Portfolio,
-    positions: typing.List[Position],
-) -> typing.List[pulp.LpVariable]:
+    positions: t.List[Position],
+) -> t.List[pulp.LpVariable]:
+
     tax_exempt_return_rates_by_asset = returns.project_tax_exempt_rates(
         portfolio.assets
     )
@@ -172,5 +169,5 @@ def _get_projected_position_return_variables(
 
 
 class CannotRebalance(Exception):
-    def __str__(self):
+    def __str__(self) -> str:
         return "The portfolio cannot be rebalanced with the given constraints"

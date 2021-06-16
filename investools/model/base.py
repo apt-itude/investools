@@ -1,7 +1,7 @@
 import pydantic
 
 
-def _to_title(string):
+def _to_title(string: str) -> str:
     return " ".join(word.capitalize() for word in string.split("_")).strip()
 
 
