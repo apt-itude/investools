@@ -19,7 +19,7 @@ tabulate = "^0.8.7"
 black = "^21.6b0"
 devtools = {extras = ["pygments"], version = "^0.6.1"}
 isort = "^5.8.0"
-mypy = "^0.902"
+mypy = "^0.910"
 pylint = "^2.6.0"
 types-tabulate = "^0.1.0"
 
