@@ -81,20 +81,27 @@ def project_returns(portfolio: model.Portfolio, years: int) -> None:
 @main.command()
 @click.pass_obj
 @click.option(
-    "--no-sales",
-    is_flag=True,
-    default=False,
-    help=(
-        "Disallow asset sales (generally only works when rebalancing after adding cash)"
-    ),
+    "-s",
+    "--sales",
+    "allowed_sales",
+    type=click.Choice([e.value for e in rebalancing.AllowedSales]),
+    default=rebalancing.AllowedSales.TAX_FREE.value,
+    help="Which type of asset sales to allow",
     show_default=True,
 )
-def rebalance(portfolio: model.Portfolio, no_sales: bool) -> None:
+def rebalance(portfolio: model.Portfolio, allowed_sales: str) -> None:
     try:
-        positions = rebalancing.rebalance(portfolio, no_sales=no_sales)
+        positions = rebalancing.rebalance(
+            portfolio,
+            rebalancing.AllowedSales(allowed_sales),
+        )
     except rebalancing.CannotRebalance as err:
         sys.exit(str(err))
 
+    print("=========")
+    print("REBALANCE")
+    print("=========")
+    print()
     print(
         tabulate.tabulate(
             [
@@ -121,6 +128,54 @@ def rebalance(portfolio: model.Portfolio, no_sales: bool) -> None:
         ),
         end="\n\n",
     )
+
+    net_ltcg = 0.0
+    net_stcg = 0.0
+    sale_rows = []
+    for position in positions:
+        for sale in position.generate_sales():
+            sale_rows.append(
+                (
+                    position.account.name,
+                    position.asset.ticker,
+                    sale.asset_lot.purchase_date,
+                    sale.asset_lot.shares,
+                    sale.share_count,
+                    sale.cost_basis,
+                    sale.proceeds,
+                    sale.capital_gains,
+                    sale.asset_lot.hold_term.name if sale.asset_lot.hold_term else None,
+                )
+            )
+            if sale.capital_gains:
+                if sale.asset_lot.hold_term is model.HoldTerm.LONG:
+                    net_ltcg += sale.capital_gains
+                else:
+                    net_stcg += sale.capital_gains
+
+    print("=====")
+    print("SALES")
+    print("=====")
+    print()
+    print(
+        tabulate.tabulate(
+            sale_rows,
+            headers=[
+                "Account",
+                "Asset",
+                "Lot Purchase Date",
+                "Lot Shares",
+                "Shares to Sell",
+                "Cost Basis",
+                "Proceeds",
+                "Capital Gain/Loss",
+                "Hold Term",
+            ],
+        ),
+        end="\n\n",
+    )
+    print(f"Net LTCG: {net_ltcg}")
+    print(f"Net STCG: {net_stcg}", end="\n\n")
 
     total_portfolio_value = portfolio.get_total_value()
     allocation_results = []
@@ -149,6 +204,10 @@ def rebalance(portfolio: model.Portfolio, no_sales: bool) -> None:
             ]
         )
 
+    print("=====================")
+    print("RESULTING ALLOCATIONS")
+    print("=====================")
+    print()
     print(
         tabulate.tabulate(
             allocation_results,
