@@ -104,6 +104,8 @@ def rebalance(portfolio: model.Portfolio, no_sales: bool) -> None:
                     position.get_current_shares(),
                     position.get_target_shares(),
                     position.get_delta(),
+                    position.asset.share_price,
+                    (position.get_delta() * position.asset.share_price),
                 )
                 for position in positions
             ],
@@ -113,6 +115,8 @@ def rebalance(portfolio: model.Portfolio, no_sales: bool) -> None:
                 "Current Shares",
                 "Target Shares",
                 "Delta",
+                "Current Share Price",
+                "Estimated Trade Amount",
             ],
         ),
         end="\n\n",
