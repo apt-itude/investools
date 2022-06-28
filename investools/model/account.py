@@ -20,11 +20,11 @@ class GoogleSheetDateTime(datetime.datetime):
     START_DATE = datetime.datetime(1899, 12, 30)
 
     @classmethod
-    def __get_validators__(cls):
+    def __get_validators__(cls) -> t.Iterator[t.Callable[[t.Any], t.Any]]:
         yield cls.validate
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: t.Any) -> datetime.datetime:
         if not isinstance(value, int):
             raise TypeError("int required")
 
