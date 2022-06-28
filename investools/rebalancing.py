@@ -79,12 +79,8 @@ class Position:
         lot_iter = iter(
             sorted(
                 self._iter_asset_lots(),
-                key=(
-                    lambda lot: (
-                        bool(lot.purchase_date),
-                        lot.purchase_date,
-                    )
-                ),
+                key=_asset_lot_sale_order_sort_key,
+                reverse=True,
             )
         )
 
@@ -101,6 +97,20 @@ class Position:
                 asset_lot=lot_to_sell_from,
             )
             remaining_shares_to_sell -= share_count
+
+
+def _asset_lot_sale_order_sort_key(
+    lot: model.AssetLot,
+) -> t.Tuple[bool, t.Optional[float]]:
+    """
+    Sell assets starting with the highest purchase price first to minimize capital
+    gains / maximize capital losses
+    """
+    if not lot.purchase_price:
+        # Separate lots without a purchase price into their own section
+        return False, None
+
+    return True, lot.purchase_price
 
 
 class AllowedSales(enum.Enum):
