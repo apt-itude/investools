@@ -83,18 +83,17 @@ def project_returns(portfolio: model.Portfolio, years: int) -> None:
 @click.option(
     "-s",
     "--sales",
-    "allowed_sales",
+    "allowed_sales_str",
     type=click.Choice([e.value for e in rebalancing.AllowedSales]),
     default=rebalancing.AllowedSales.TAX_FREE.value,
     help="Which type of asset sales to allow",
     show_default=True,
 )
-def rebalance(portfolio: model.Portfolio, allowed_sales: str) -> None:
+def rebalance(portfolio: model.Portfolio, allowed_sales_str: str) -> None:
+    allowed_sales = rebalancing.AllowedSales(allowed_sales_str)
+
     try:
-        positions = rebalancing.rebalance(
-            portfolio,
-            rebalancing.AllowedSales(allowed_sales),
-        )
+        positions = rebalancing.rebalance(portfolio, allowed_sales)
     except rebalancing.CannotRebalance as err:
         sys.exit(str(err))
 
@@ -133,7 +132,7 @@ def rebalance(portfolio: model.Portfolio, allowed_sales: str) -> None:
     net_stcg = 0.0
     sale_rows = []
     for position in positions:
-        for sale in position.generate_sales():
+        for sale in position.generate_sales(allowed_sales):
             sale_rows.append(
                 (
                     position.account.name,
