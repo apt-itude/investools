@@ -176,6 +176,32 @@ def rebalance(portfolio: model.Portfolio, allowed_sales_str: str) -> None:
     print(f"Net LTCG: {net_ltcg}")
     print(f"Net STCG: {net_stcg}", end="\n\n")
 
+    print("=========")
+    print("PURCHASES")
+    print("=========")
+    print()
+    print(
+        tabulate.tabulate(
+            [
+                (
+                    position.account.name,
+                    position.asset.ticker,
+                    position.get_delta(),
+                    (position.get_delta() * position.asset.share_price),
+                )
+                for position in positions
+                if position.get_delta() > 0
+            ],
+            headers=[
+                "Account",
+                "Asset",
+                "Shares to Purchase",
+                "Cost",
+            ],
+        ),
+        end="\n\n",
+    )
+
     total_portfolio_value = portfolio.get_total_value()
     allocation_results = []
     for allocation in portfolio.allocations:
