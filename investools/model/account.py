@@ -15,11 +15,49 @@ class TaxationClass(enum.Enum):
     TAX_EXEMPT = "TaxExempt"
 
 
+class GoogleSheetDateTime(datetime.datetime):
+
+    START_DATE = datetime.datetime(1899, 12, 30)
+
+    @classmethod
+    def __get_validators__(cls) -> t.Iterator[t.Callable[[t.Any], t.Any]]:
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, value: t.Any) -> datetime.datetime:
+        if not isinstance(value, int):
+            raise TypeError("int required")
+
+        return cls.START_DATE + datetime.timedelta(days=value)
+
+
+class HoldTerm(enum.Enum):
+
+    SHORT = enum.auto()
+    LONG = enum.auto()
+
+
 class AssetLot(BaseModel):
 
     ticker: str
     shares: float = pydantic.Field(0.0, ge=0.0)
-    # TODO purchase_date
+    purchase_date: t.Optional[GoogleSheetDateTime]
+    purchase_price: t.Optional[float]
+
+    @property
+    def days_held(self) -> t.Optional[int]:
+        if self.purchase_date is None:
+            return None
+
+        delta = datetime.datetime.today() - self.purchase_date
+        return delta.days
+
+    @property
+    def hold_term(self) -> t.Optional[HoldTerm]:
+        if self.days_held is None:
+            return None
+
+        return HoldTerm.LONG if self.days_held > 365 else HoldTerm.SHORT
 
 
 class Account(BaseModel):

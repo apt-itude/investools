@@ -1,4 +1,4 @@
-from .account import Account, AssetLot, TaxationClass
+from .account import Account, AssetLot, HoldTerm, TaxationClass
 from .allocation import Allocation
 from .asset import Asset, AssetClass
 from .config import Config
@@ -11,6 +11,7 @@ __all__ = [
     "AssetClass",
     "AssetLot",
     "Config",
+    "HoldTerm",
     "Portfolio",
     "TaxationClass",
 ]
