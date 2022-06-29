@@ -8,6 +8,14 @@ import pulp
 from . import model, returns
 
 
+class AllowedSales(enum.Enum):
+
+    NONE = "none"
+    TAX_FREE = "tax-free"
+    LONG_TERM = "long-term"
+    ALL = "all"
+
+
 @dataclasses.dataclass
 class Sale:
 
@@ -72,13 +80,18 @@ class Position:
             if lot.ticker == self.asset.ticker:
                 yield lot
 
-    def generate_sales(self) -> t.Iterator[Sale]:
+    def generate_sales(self, allowed: AllowedSales) -> t.Iterator[Sale]:
         delta = self.get_delta()
         remaining_shares_to_sell = abs(delta) if delta < 0 else 0
 
         lot_iter = iter(
             sorted(
-                self._iter_asset_lots(),
+                [
+                    lot
+                    for lot in self._iter_asset_lots()
+                    if allowed is AllowedSales.ALL
+                    or lot.hold_term is not model.HoldTerm.SHORT
+                ],
                 key=_asset_lot_sale_order_sort_key,
                 reverse=True,
             )
@@ -111,14 +124,6 @@ def _asset_lot_sale_order_sort_key(
         return False, None
 
     return True, lot.purchase_price
-
-
-class AllowedSales(enum.Enum):
-
-    NONE = "none"
-    TAX_FREE = "tax-free"
-    LONG_TERM = "long-term"
-    ALL = "all"
 
 
 def rebalance(
