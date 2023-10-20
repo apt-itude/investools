@@ -8,7 +8,6 @@ import requests_cache
 
 @dataclasses.dataclass
 class AssetHistory:
-
     _historical_data: pandas.DataFrame
 
     @classmethod

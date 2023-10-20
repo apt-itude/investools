@@ -9,14 +9,12 @@ from .base import BaseModel
 
 
 class TaxationClass(enum.Enum):
-
     TAXABLE = "Taxable"
     TAX_DEFERRED = "TaxDeferred"
     TAX_EXEMPT = "TaxExempt"
 
 
 class GoogleSheetDateTime(datetime.datetime):
-
     START_DATE = datetime.datetime(1899, 12, 30)
 
     @classmethod
@@ -32,13 +30,11 @@ class GoogleSheetDateTime(datetime.datetime):
 
 
 class HoldTerm(enum.Enum):
-
     SHORT = enum.auto()
     LONG = enum.auto()
 
 
 class AssetLot(BaseModel):
-
     ticker: str
     shares: float = pydantic.Field(0.0, ge=0.0)
     purchase_date: t.Optional[GoogleSheetDateTime]
@@ -61,7 +57,6 @@ class AssetLot(BaseModel):
 
 
 class Account(BaseModel):
-
     name: str
     taxation_class: TaxationClass
     withdrawal_year: int
@@ -78,7 +73,6 @@ class Account(BaseModel):
 
     @pydantic.validator("withdrawal_tax_rate", pre=True)
     def _empty_string_as_none(cls, value: t.Optional[float]) -> t.Optional[float]:
-
         if not value:
             return None
         return value
