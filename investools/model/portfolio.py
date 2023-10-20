@@ -10,7 +10,6 @@ from .config import Config
 
 
 class Portfolio(BaseModel):
-
     allocations: t.List[Allocation]
     accounts: t.List[Account]
     assets: t.List[Asset]
@@ -20,7 +19,6 @@ class Portfolio(BaseModel):
     def _allocation_proportions_sum_to_one(
         cls, allocations: t.List[Allocation]
     ) -> t.List[Allocation]:
-
         if not allocations:
             return allocations
 

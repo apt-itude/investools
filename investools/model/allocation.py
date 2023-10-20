@@ -7,7 +7,6 @@ from .base import BaseModel
 
 
 class Allocation(BaseModel):
-
     name: str
     proportion: float = pydantic.Field(0.0, ge=0.0, le=1.0)
     asset_class: t.Optional[AssetClass] = None

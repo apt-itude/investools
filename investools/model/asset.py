@@ -7,7 +7,6 @@ from .base import BaseModel
 
 
 class AssetClass(enum.Enum):
-
     CASH = "Cash"
     EQUITY_US = "Equity_US"
     EQUITY_US_LARGE_CAP = "Equity_US_Large_Cap"
@@ -21,7 +20,6 @@ class AssetClass(enum.Enum):
 
 
 class Asset(BaseModel):
-
     ticker: str
     class_: AssetClass
     share_price: float
@@ -32,7 +30,6 @@ class Asset(BaseModel):
     def _empty_string_as_default(
         cls, value: t.Optional[str], field: pydantic.fields.ModelField
     ) -> t.Any:
-
         if value == "":
             return field.default
         return value

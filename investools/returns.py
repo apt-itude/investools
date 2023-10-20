@@ -10,7 +10,6 @@ def project_tax_exempt_rates(
     assets: t.Iterable[model.Asset],
     total_market_asset_ticker: str = "ACWI",
 ) -> t.Dict[str, float]:
-
     market_history = history.AssetHistory.from_tiingo(total_market_asset_ticker)
     market_prices = market_history.data.adjClose
     risk_aversion = _get_market_implied_risk_aversion(market_prices)
