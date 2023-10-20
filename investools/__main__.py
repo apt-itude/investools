@@ -38,6 +38,83 @@ def print_portfolio(portfolio: model.Portfolio) -> None:
 
 @main.command()
 @click.pass_obj
+def summary(portfolio: model.Portfolio) -> None:
+    total_portfolio_value = portfolio.get_total_value()
+
+    positions = [
+        rebalancing.Position(account, asset)
+        for account in portfolio.accounts
+        for asset in portfolio.assets
+    ]
+
+    print("=========")
+    print("POSITIONS")
+    print("=========")
+    print()
+    print(
+        tabulate.tabulate(
+            [
+                (
+                    position.account.name,
+                    position.asset.ticker,
+                    position.get_current_shares(),
+                    position.asset.share_price,
+                    position.get_current_investment(),
+                )
+                for position in positions
+            ],
+            headers=[
+                "Account",
+                "Asset",
+                "Current Shares",
+                "Current Share Price",
+                "Current Investment",
+            ],
+        ),
+        end="\n\n",
+    )
+
+    allocation_results = []
+    for allocation in portfolio.allocations:
+        matching_asset_tickers = {
+            asset.ticker for asset in portfolio.assets if allocation.matches(asset)
+        }
+
+        matching_asset_investments = [
+            position.get_current_investment()
+            for position in positions
+            if position.asset.ticker in matching_asset_tickers
+        ]
+        matching_assets_total_investment = sum(matching_asset_investments)
+        matching_assets_proportion = (
+            matching_assets_total_investment / total_portfolio_value
+        )
+        matching_assets_drift = allocation.proportion - matching_assets_proportion
+
+        allocation_results.append(
+            [
+                allocation.name,
+                allocation.proportion * 100,
+                matching_assets_proportion * 100,
+                matching_assets_drift * 100,
+            ]
+        )
+
+    print("===========")
+    print("ALLOCATIONS")
+    print("===========")
+    print()
+    print(
+        tabulate.tabulate(
+            allocation_results,
+            headers=["Allocation", "Target %", "Actual %", "Drift %"],
+            floatfmt=".2f",
+        )
+    )
+
+
+@main.command()
+@click.pass_obj
 @click.option(
     "-y",
     "--years",

@@ -9,7 +9,6 @@ from . import model, returns
 
 
 class AllowedSales(enum.Enum):
-
     NONE = "none"
     TAX_FREE = "tax-free"
     LONG_TERM = "long-term"
@@ -18,7 +17,6 @@ class AllowedSales(enum.Enum):
 
 @dataclasses.dataclass
 class Sale:
-
     share_count: float
     sale_price: float
     asset_lot: model.AssetLot
@@ -44,7 +42,6 @@ class Sale:
 
 @dataclasses.dataclass
 class Position:
-
     account: model.Account
     asset: model.Asset
 
@@ -67,6 +64,9 @@ class Position:
 
     def get_target_investment(self) -> float:
         return self.get_target_shares() * self.asset.share_price
+
+    def get_current_investment(self) -> float:
+        return self.get_current_shares() * self.asset.share_price
 
     def get_short_term_share_count(self) -> float:
         return sum(
@@ -144,7 +144,6 @@ def _try_rebalance(
     drift_limit: float,
     allowed_sales: AllowedSales,
 ) -> t.List[Position]:
-
     problem = pulp.LpProblem(name="Rebalance", sense=pulp.const.LpMaximize)
 
     positions = [
@@ -242,7 +241,6 @@ def _get_projected_position_return_variables(
     portfolio: model.Portfolio,
     positions: t.List[Position],
 ) -> t.List[pulp.LpVariable]:
-
     tax_exempt_return_rates_by_asset = returns.project_tax_exempt_rates(
         portfolio.assets
     )
