@@ -60,6 +60,7 @@ def summary(portfolio: model.Portfolio) -> None:
                     position.get_current_shares(),
                     position.asset.share_price,
                     position.get_current_investment(),
+                    100 * position.get_current_account_proportion(portfolio.assets),
                 )
                 for position in positions
             ],
@@ -69,7 +70,9 @@ def summary(portfolio: model.Portfolio) -> None:
                 "Current Shares",
                 "Current Share Price",
                 "Current Investment",
+                "Current Account %",
             ],
+            floatfmt=".2f",
         ),
         end="\n\n",
     )
@@ -201,6 +204,7 @@ def rebalance(
                     position.get_delta(),
                     position.asset.share_price,
                     (position.get_delta() * position.asset.share_price),
+                    100 * position.get_target_account_proportion(portfolio.assets),
                 )
                 for position in positions
             ],
@@ -212,7 +216,9 @@ def rebalance(
                 "Delta",
                 "Current Share Price",
                 "Estimated Trade Amount",
+                "Target Account %",
             ],
+            floatfmt=".2f",
         ),
         end="\n\n",
     )
