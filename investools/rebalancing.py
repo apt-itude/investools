@@ -1,11 +1,12 @@
 import dataclasses
 import enum
 import functools
+import itertools
 import typing as t
 
 import pulp
 
-from . import model, returns
+from . import model, returns, utils
 
 
 class AllowedSales(enum.Enum):
@@ -65,8 +66,14 @@ class Position:
     def get_target_investment(self) -> float:
         return self.get_target_shares() * self.asset.share_price
 
+    def get_target_account_proportion(self, assets: t.Iterable[model.Asset]) -> float:
+        return self.get_target_investment() / self.account.get_total_value(assets)
+
     def get_current_investment(self) -> float:
         return self.get_current_shares() * self.asset.share_price
+
+    def get_current_account_proportion(self, assets: t.Iterable[model.Asset]) -> float:
+        return self.get_current_investment() / self.account.get_total_value(assets)
 
     def get_short_term_share_count(self) -> float:
         return sum(
@@ -175,6 +182,61 @@ def _try_rebalance(
 
     # Ensure each allocation is within the drift limit of its target proportion
     total_portfolio_value = portfolio.get_total_value()
+
+    # If this limit is configured, ensure that all accounts within the same taxation
+    # class have roughly the same asset allocation, where the percentage of each asset
+    # can differ across accounts by this much
+    if portfolio.config.same_tax_class_drift_limit > 0:
+        for taxation_class, accounts_group in utils.full_groupby(
+            portfolio.accounts,
+            key=(lambda account: account.taxation_class.value),
+        ):
+            accounts = list(accounts_group)
+            if len(accounts) > 1:
+                for first_account, second_account in itertools.combinations(
+                    accounts, 2
+                ):
+                    assert isinstance(first_account, model.Account)
+                    assert isinstance(second_account, model.Account)
+
+                    first_account_positions = {
+                        position.asset.ticker: position
+                        for position in positions
+                        if position.account.id == first_account.id
+                    }
+                    for position in positions:
+                        if position.account.id == second_account.id:
+                            asset = position.asset
+                            first_account_position = first_account_positions[
+                                asset.ticker
+                            ]
+                            second_account_position = position
+
+                            first_account_position_percentage = (
+                                first_account_position.target_shares_variable
+                                * asset.share_price
+                            ) / first_account.get_total_value(portfolio.assets)
+
+                            second_account_position_percentage = (
+                                second_account_position.target_shares_variable
+                                * asset.share_price
+                            ) / second_account.get_total_value(portfolio.assets)
+
+                            difference = (
+                                first_account_position_percentage
+                                - second_account_position_percentage
+                            )
+
+                            problem += (
+                                difference
+                                <= portfolio.config.same_tax_class_drift_limit,
+                                f"same_tax_class_drift_within_positive_limit_{first_account.id}_{second_account.id}_{asset.ticker}",
+                            )
+                            problem += (
+                                -difference
+                                <= portfolio.config.same_tax_class_drift_limit,
+                                f"same_tax_class_drift_within_negative_limit_{first_account.id}_{second_account.id}_{asset.ticker}",
+                            )
 
     for allocation in portfolio.allocations:
         matching_asset_tickers = {
