@@ -127,12 +127,14 @@ def _asset_lot_sale_order_sort_key(
 
 
 def rebalance(
-    portfolio: model.Portfolio, allowed_sales: AllowedSales
+    portfolio: model.Portfolio,
+    allowed_sales: AllowedSales,
+    max_time: int,
 ) -> t.List[Position]:
     drift_limit = 0.0001
     while True:
         try:
-            return _try_rebalance(portfolio, drift_limit, allowed_sales)
+            return _try_rebalance(portfolio, drift_limit, allowed_sales, max_time)
         except CannotRebalance:
             drift_limit = drift_limit * 2
             if drift_limit > portfolio.config.drift_limit:
@@ -143,6 +145,7 @@ def _try_rebalance(
     portfolio: model.Portfolio,
     drift_limit: float,
     allowed_sales: AllowedSales,
+    max_time: int,
 ) -> t.List[Position]:
     problem = pulp.LpProblem(name="Rebalance", sense=pulp.const.LpMaximize)
 
@@ -229,7 +232,8 @@ def _try_rebalance(
     )
     problem += pulp.lpSum(projected_position_return_variables)
 
-    problem.solve()
+    solver = pulp.get_solver("PULP_CBC_CMD", timeLimit=max_time)
+    problem.solve(solver=solver)
 
     if problem.status != 1:
         raise CannotRebalance()
