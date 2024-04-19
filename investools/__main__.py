@@ -166,11 +166,23 @@ def project_returns(portfolio: model.Portfolio, years: int) -> None:
     help="Which type of asset sales to allow",
     show_default=True,
 )
-def rebalance(portfolio: model.Portfolio, allowed_sales_str: str) -> None:
+@click.option(
+    "-t",
+    "--max-time",
+    type=int,
+    default=60,
+    help="Max number of seconds to wait for optimal solution",
+    show_default=True,
+)
+def rebalance(
+    portfolio: model.Portfolio,
+    allowed_sales_str: str,
+    max_time: int,
+) -> None:
     allowed_sales = rebalancing.AllowedSales(allowed_sales_str)
 
     try:
-        positions = rebalancing.rebalance(portfolio, allowed_sales)
+        positions = rebalancing.rebalance(portfolio, allowed_sales, max_time)
     except rebalancing.CannotRebalance as err:
         sys.exit(str(err))
 
